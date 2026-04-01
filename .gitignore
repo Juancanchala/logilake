@@ -25,3 +25,7 @@ Thumbs.db
 
 # ngrok
 ngrok.yml
+
+# Power BI
+*.pbix
+powerbi/data/
