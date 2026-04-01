@@ -1,0 +1,27 @@
+# Dataset Olist (descargar desde Kaggle)
+data/raw/
+data/processed/
+
+# Checkpoints de Spark (locales)
+checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+.env
+venv/
+.venv/
+
+# Databricks local
+.databricks/
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ngrok
+ngrok.yml
