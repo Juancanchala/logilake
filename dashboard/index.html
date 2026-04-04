@@ -34,6 +34,36 @@
     .leg-seg{width:28px;height:8px;border-radius:2px}
     select{font-size:11px;color:#5f5e5a;background:#f4f3f1;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;outline:none;margin-left:auto}
     .loading{display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;color:#888780}
+
+    /* ── Chart heights ───────────────────────────────────────────────────── */
+    .monthly-h { height:200px }
+    .nps-h     { height:160px }
+    .cat-h     { height:300px }
+
+    /* ── Responsive ──────────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .dash        { padding:12px }
+      .header      { flex-direction:column; align-items:flex-start; gap:4px }
+      .header-meta { font-size:11px }
+      .filter-bar  { flex-wrap:wrap; gap:8px }
+      .kpi-grid    { grid-template-columns:repeat(2,1fr) }
+      .kpi-value   { font-size:22px }
+      .row-2       { grid-template-columns:1fr }
+      .row-3       { grid-template-columns:1fr }
+    }
+
+    @media (max-width: 480px) {
+      .dash        { padding:8px }
+      .kpi-grid    { gap:8px }
+      .kpi-card    { padding:12px 14px }
+      .kpi-value   { font-size:20px }
+      .panel       { padding:14px }
+      .filter-bar  { padding:10px 12px }
+      #agent-input { font-size:16px } /* evita zoom automático en iOS */
+      .monthly-h   { height:160px }
+      .nps-h       { height:140px }
+      .cat-h       { height:240px }
+    }
   </style>
 </head>
 <body>
@@ -83,11 +113,11 @@
   <div class="row row-2">
     <div class="panel">
       <div class="panel-title">Órdenes mensuales</div>
-      <div class="chart-wrap" style="height:200px"><canvas id="monthlyChart"></canvas></div>
+      <div class="chart-wrap monthly-h"><canvas id="monthlyChart"></canvas></div>
     </div>
     <div class="panel">
       <div class="panel-title">Review score</div>
-      <div class="chart-wrap" style="height:160px"><canvas id="npsChart"></canvas></div>
+      <div class="chart-wrap nps-h"><canvas id="npsChart"></canvas></div>
       <div id="nps-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:11px;color:#888780"></div>
     </div>
   </div>
@@ -95,7 +125,7 @@
   <div class="row row-2">
     <div class="panel">
       <div class="panel-title">Revenue por categoría · top 10</div>
-      <div class="chart-wrap" style="height:300px"><canvas id="catChart"></canvas></div>
+      <div class="chart-wrap cat-h"><canvas id="catChart"></canvas></div>
     </div>
     <div class="panel">
       <div style="display:flex;align-items:center;margin-bottom:14px">
