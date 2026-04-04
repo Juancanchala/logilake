@@ -2,6 +2,12 @@
 data/raw/
 data/processed/
 
+# Capas Delta Lake (generadas en ejecucion)
+data/bronze/
+data/silver/
+data/gold/
+data/serving/
+
 # Checkpoints de Spark (locales)
 checkpoints/
 
@@ -26,6 +32,11 @@ Thumbs.db
 # ngrok
 ngrok.yml
 
-# Power BI
-*.pbix
-powerbi/data/
+powerbi/
+
+# Jupyter
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# Datos generados al correr notebooks desde subdirectorios
+notebooks/**/data/

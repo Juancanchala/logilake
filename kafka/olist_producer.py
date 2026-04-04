@@ -120,17 +120,17 @@ def row_to_event(row: dict) -> dict:
         "order_delivered_ts":  str(row.get("order_delivered_customer_date", "")),
         "order_estimated_ts":  str(row.get("order_estimated_delivery_date", "")),
         # Items y logística
-        "item_count":          int(row.get("item_count") or 0),
+        "item_count":          int(row["item_count"]) if not pd.isna(row.get("item_count")) else 0,
         "categories":          row.get("categories") or [],
         "seller_states":       row.get("seller_states") or [],
-        "total_items_value":   float(row.get("total_items_value") or 0.0),
-        "total_freight":       float(row.get("total_freight") or 0.0),
+        "total_items_value":   float(row["total_items_value"]) if not pd.isna(row.get("total_items_value")) else 0.0,
+        "total_freight":       float(row["total_freight"]) if not pd.isna(row.get("total_freight")) else 0.0,
         # Pago
         "payment_type":        row.get("payment_type"),
-        "payment_installments":int(row.get("payment_installments") or 1),
-        "payment_value":       float(row.get("payment_value") or 0.0),
+        "payment_installments":int(row["payment_installments"]) if not pd.isna(row.get("payment_installments")) else 1,
+        "payment_value":       float(row["payment_value"]) if not pd.isna(row.get("payment_value")) else 0.0,
         # Review
-        "review_score":        row.get("review_score"),
+        "review_score":        float(row["review_score"]) if not pd.isna(row.get("review_score")) else None,
         # Metadatos de ingesta
         "ingested_at":         datetime.utcnow().isoformat(),
         "source":              "olist_producer_v1",

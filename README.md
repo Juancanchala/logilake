@@ -1,8 +1,10 @@
 # LogiLake
 **Data Engineering Portfolio Project — D'LOGIA**
 
-Pipeline completo de ingenieria de datos sobre el dataset **Brazilian E-commerce Olist** (100k ordenes reales), implementando una **arquitectura Medallion** con Kafka, PySpark, Delta Lake y Power BI.
-Corre completamente en local con **PySpark 3.5.0** y **Delta Spark 3.1.0** — sin Databricks ni servicios cloud.
+Pipeline completo de ingenieria de datos sobre el dataset **Brazilian E-commerce Olist** (100k ordenes reales),
+implementando una **arquitectura Medallion** con Kafka, PySpark y Delta Lake.
+El producto final es un **dashboard interactivo con SQL Agent** (GPT-4o + DuckDB WASM)
+desplegado en [dlogia.tech/logilake](https://dlogia.tech/logilake).
 
 ---
 
@@ -40,34 +42,32 @@ Olist CSVs (data/raw/)
                             |
                             v
                    +---------------------+
-                   |   CSV EXPORT        |  Serving
-                   |   pandas to_csv()   |  powerbi/data/
-                   |   UTF-8, header     |  single-file
+                   |   SERVING           |  CSVs estaticos
+                   |   pandas to_csv()   |  data/serving/
+                   |   UTF-8, header     |  -> dashboard/data/
                    +--------+------------+
                             |
                             v
-                   [Power BI Desktop]
-                   Obtener datos -> Carpeta
-                            |
-                            v
-                   [Power BI Service]
-                   Publicar y compartir
+                   +---------------------+
+                   |   DASHBOARD         |  Netlify
+                   |   HTML + JS         |  dlogia.tech/logilake
+                   |   Charts (KPIs)     |
+                   |   SQL Agent         |
+                   |   GPT-4o + DuckDB   |
+                   +---------------------+
 ```
-
-**Flujo: Kafka -> Bronze -> Silver -> Gold -> CSV Export -> Power BI Desktop -> Power BI Service**
 
 ---
 
 ## Stack Tecnico
 
-| Componente | Tecnologia | Version |
-|---|---|---|
-| Mensajeria | Apache Kafka (Docker local) | 7.5 (Confluent) |
-| Procesamiento | PySpark + Structured Streaming | 3.5.0 |
-| Storage | Delta Lake | 3.1.0 |
-| Notebooks | Jupyter Notebook | local |
-| Visualizacion | Power BI Desktop / Service | - |
-| Versionamiento | GitHub | - |
+| Capa | Tecnologia |
+|---|---|
+| **Ingesta** | Apache Kafka 7.5 (Docker) + Spark Structured Streaming |
+| **Procesamiento** | PySpark 3.5.0 + Delta Lake 3.1.0 (Bronze -> Silver -> Gold) |
+| **Export** | pandas `to_csv()` — CSVs estaticos en `./data/serving/` |
+| **Producto** | Dashboard HTML + SQL Agent (GPT-4o + DuckDB WASM) |
+| **Deploy** | Netlify — [dlogia.tech/logilake](https://dlogia.tech/logilake) |
 
 ---
 
@@ -89,15 +89,13 @@ Olist CSVs (data/raw/)
 
 ## Setup Local
 
-### 1. Clonar repositorio e instalar dependencias
+### 1. Clonar e instalar dependencias
 
 ```bash
 git clone https://github.com/Juancanchala/logilake.git
 cd logilake
 pip install -r requirements.txt
 ```
-
-`requirements.txt` incluye: `pyspark==3.5.0`, `delta-spark==3.1.0`, `kafka-python==2.0.2`, `pandas>=2.0.0`, `jupyter`.
 
 > **Windows**: requiere Java 11 o 17 instalado y `JAVA_HOME` configurado.
 > Descargar desde [adoptium.net](https://adoptium.net).
@@ -116,49 +114,38 @@ unzip brazilian-ecommerce.zip -d data/raw/
 ```bash
 cd kafka
 docker-compose up -d
-
-# Esperar ~30 segundos y crear el topic
 bash topic_config.sh create
-bash topic_config.sh describe
-
 # Verificar en Kafka UI: http://localhost:8080
 cd ..
 ```
 
-> Si no tienes Docker, puedes saltarte Kafka. El notebook Bronze incluye
-> modo de ingesta batch directa desde CSV.
+> Si no tienes Docker, el notebook Bronze incluye modo batch directo desde CSV.
 
-### 4. Lanzar Jupyter y ejecutar notebooks
+### 4. Ejecutar notebooks en orden
 
 ```bash
 jupyter notebook
 ```
 
-Ejecutar en orden desde `notebooks/`:
-
 ```
-01_bronze_ingest.ipynb    -> Ingesta CSV/Kafka  -> Delta Lake data/bronze/
-02_silver_transform.ipynb -> Transformacion DQ  -> Delta Lake data/silver/
-03_gold_kpis.ipynb        -> KPIs de negocio    -> Delta Lake data/gold/
-04_export_serving.ipynb   -> Export CSV limpio  -> powerbi/data/
+01_bronze_ingest.ipynb    -> data/bronze/   (Delta Lake)
+02_silver_transform.ipynb -> data/silver/   (Delta Lake)
+03_gold_kpis.ipynb        -> data/gold/     (Delta Lake)
+04_export_serving.ipynb   -> data/serving/  (CSVs)
 ```
 
-### 5. Conectar Power BI
+### 5. Copiar CSVs al dashboard y desplegar
 
+```bash
+cp data/serving/*.csv dashboard/data/
+# Despliegue automatico via Netlify en cada push a main
 ```
-1. Ejecutar 04_export_serving.ipynb
-2. Abrir Power BI Desktop
-3. Inicio -> Obtener datos -> Carpeta -> seleccionar powerbi/data/
-4. Publicar en Power BI Service
-```
-
-Ver instrucciones detalladas en [powerbi/README.md](powerbi/README.md).
 
 ---
 
 ## KPIs
 
-| KPI | Descripcion | Tabla CSV |
+| KPI | Descripcion | Tabla |
 |---|---|---|
 | **OTIF Rate** | % ordenes entregadas a tiempo y completas | kpi_global |
 | **Avg Delivery Days** | Dias promedio de entrega real | kpi_monthly |
@@ -177,30 +164,33 @@ Ver instrucciones detalladas en [powerbi/README.md](powerbi/README.md).
 ```
 logilake/
 |-- kafka/
-|   |-- docker-compose.yml     # Kafka + Zookeeper + Kafka UI
-|   |-- olist_producer.py      # Producer que lee CSVs -> Kafka
-|   +-- topic_config.sh        # Gestion del topic
+|   |-- docker-compose.yml       # Kafka + Zookeeper + Kafka UI
+|   |-- olist_producer.py        # Producer CSV -> Kafka
+|   +-- topic_config.sh          # Gestion del topic
 |-- notebooks/
 |   |-- bronze/01_bronze_ingest.ipynb
 |   |-- silver/02_silver_transform.ipynb
 |   |-- gold/03_gold_kpis.ipynb
 |   +-- serving/04_export_serving.ipynb
 |-- utils/
-|   |-- schemas.py             # Schemas PySpark por capa
-|   +-- delta_helpers.py       # Helpers de Delta Lake
-|-- powerbi/
-|   |-- README.md              # Instrucciones de conexion Power BI
-|   +-- data/                  # CSVs Gold exportados (gitignored)
+|   |-- schemas.py               # Schemas PySpark por capa
+|   +-- delta_helpers.py         # Helpers de Delta Lake
+|-- dashboard/
+|   |-- index.html               # Dashboard principal
+|   |-- js/
+|   |   |-- charts.js            # Visualizaciones KPIs
+|   |   +-- agent.js             # SQL Agent (GPT-4o + DuckDB WASM)
+|   +-- data/                    # CSVs Gold (copiados desde data/serving/)
 |-- data/
-|   +-- raw/                   # CSVs Olist (gitignored)
+|   |-- raw/                     # CSVs Olist (gitignored)
+|   |-- bronze/                  # Delta Lake Bronze (gitignored)
+|   |-- silver/                  # Delta Lake Silver (gitignored)
+|   |-- gold/                    # Delta Lake Gold (gitignored)
+|   +-- serving/                 # CSVs exportados (gitignored)
 |-- requirements.txt
+|-- .gitignore
 +-- README.md
 ```
-
-Datos generados en ejecucion (todos gitignored):
-- `data/bronze/`, `data/silver/`, `data/gold/` — tablas Delta Lake
-- `data/checkpoints/` — checkpoints de Spark Streaming
-- `powerbi/data/` — CSVs exportados para Power BI
 
 ---
 
@@ -209,24 +199,20 @@ Datos generados en ejecucion (todos gitignored):
 ### SparkSession local con Delta Lake
 
 Cada notebook configura su propia `SparkSession` usando `configure_spark_with_delta_pip`
-de la libreria `delta-spark`. Esto descarga automaticamente los JARs de Delta al
-iniciar la sesion (solo la primera vez, luego se cachean en `~/.ivy2`).
+de `delta-spark`, que descarga automaticamente los JARs necesarios la primera vez.
+
+### SQL Agent con DuckDB WASM
+
+El dashboard incluye un agente conversacional que permite hacer preguntas en lenguaje
+natural sobre los datos. GPT-4o genera SQL, DuckDB WASM lo ejecuta en el navegador
+sobre los CSVs cargados, y el resultado se renderiza como tabla o grafico.
 
 ### Por que Kafka si solo corre local
 
-Kafka simula el escenario real de streaming de eventos de e-commerce.
-En produccion equivaldria a eventos de un OMS publicando en tiempo real.
-El producer Python reemplaza la fuente real y demuestra la integracion
-completa Bronze <- Spark Structured Streaming <- Kafka.
-
-El notebook Bronze incluye **modo batch** como alternativa cuando Kafka
-no esta disponible, cargando los CSVs directamente.
-
-### Exportacion CSV con pandas
-
-El notebook Serving usa `toPandas().to_csv()` en lugar de
-`coalesce(1).write.csv()` para producir un unico archivo por tabla
-sin subdirectorios, listo para importar directamente en Power BI.
+Kafka simula el escenario real de streaming de eventos de un OMS en tiempo real.
+El producer Python reemplaza la fuente real y demuestra la integracion completa
+Bronze <- Spark Structured Streaming <- Kafka. El notebook Bronze incluye
+**modo batch** como alternativa cuando Kafka no esta disponible.
 
 ---
 
