@@ -1,73 +1,72 @@
 # LogiLake
 **Data Engineering Portfolio Project — D'LOGIA**
 
-Pipeline completo de ingenieria de datos sobre el dataset **Brazilian E-commerce Olist** (100k ordenes reales),
-implementando una **arquitectura Medallion** con Kafka, PySpark y Delta Lake.
-El producto final es un **dashboard interactivo con SQL Agent** (GPT-4o + DuckDB WASM)
-desplegado en [dlogia.tech/logilake](https://dlogia.tech/logilake).
+Pipeline completo de ingeniería de datos sobre el dataset **Brazilian E-commerce Olist** (99,441 órdenes reales),
+implementando una **arquitectura Medallion** con PySpark, Delta Lake y un dashboard interactivo con
+**SQL Agent** (GPT-4o + DuckDB WASM).
+
+**Live:** [logilake.netlify.app](https://logilake.netlify.app)
 
 ---
 
 ## Arquitectura
 
 ```
-Olist CSVs (data/raw/)
-       |
-       v
-[Kafka Producer]  --> Topic: olist_orders
- olist_producer.py     (Docker local, puerto 9092)
-                              |
-                              v
-                   +---------------------+
-                   |   BRONZE LAYER      |  Raw ingest
-                   |   Spark Streaming   |  Delta Lake
-                   |   + batch CSV mode  |  data/bronze/
-                   +--------+------------+
-                            |
-                            v
-                   +---------------------+
-                   |   SILVER LAYER      |  Limpieza + DQ
-                   |   Timestamps cast   |  Delta Lake
-                   |   Columnas OTIF     |  data/silver/
-                   |   DQ flags + MERGE  |
-                   +--------+------------+
-                            |
-                            v
-                   +---------------------+
-                   |   GOLD LAYER        |  KPIs negocio
-                   |   OTIF Rate         |  Delta Lake
-                   |   Revenue analytics |  data/gold/
-                   |   NPS proxy         |
-                   +--------+------------+
-                            |
-                            v
-                   +---------------------+
-                   |   SERVING           |  CSVs estaticos
-                   |   pandas to_csv()   |  data/serving/
-                   |   UTF-8, header     |  -> dashboard/data/
-                   +--------+------------+
-                            |
-                            v
-                   +---------------------+
-                   |   DASHBOARD         |  Netlify
-                   |   HTML + JS         |  dlogia.tech/logilake
-                   |   Charts (KPIs)     |
-                   |   SQL Agent         |
-                   |   GPT-4o + DuckDB   |
-                   +---------------------+
+data/raw/  (9 CSVs Olist)
+      |
+      v
++─────────────────────+
+│   BRONZE            │  Ingesta raw → Delta Lake
+│   PySpark batch     │  9 tablas, 1.55M filas
+│   data/bronze/      │
++─────────┬───────────+
+          |
+          v
++─────────────────────+
+│   SILVER            │  Limpieza + Quality checks
+│   JOIN 9 tablas     │  Timestamps, nulos, flags OTIF
+│   data/silver/      │
++─────────┬───────────+
+          |
+          v
++─────────────────────+
+│   GOLD              │  KPIs de negocio
+│   OTIF, Revenue     │  Agregaciones por mes, categoría
+│   NPS, Delivery     │  y estado
+│   data/gold/        │
++─────────┬───────────+
+          |
+          v
++─────────────────────+
+│   SERVING           │  Export CSV — contrato de datos
+│   5 archivos CSV    │  listos para consumo BI
+│   data/serving/     │
+│   dashboard/data/   │
++─────────┬───────────+
+          |
+          v
++─────────────────────+
+│   DASHBOARD         │  Netlify — logilake.netlify.app
+│   Chart.js + D3     │  KPIs, gráficas, mapa Brasil
+│   SQL Agent         │  GPT-4o genera SQL
+│   DuckDB WASM       │  Ejecuta en el browser
++─────────────────────+
 ```
 
 ---
 
-## Stack Tecnico
+## Stack Técnico
 
-| Capa | Tecnologia |
+| Capa | Tecnología |
 |---|---|
-| **Ingesta** | Apache Kafka 7.5 (Docker) + Spark Structured Streaming |
-| **Procesamiento** | PySpark 3.5.0 + Delta Lake 3.1.0 (Bronze -> Silver -> Gold) |
-| **Export** | pandas `to_csv()` — CSVs estaticos en `./data/serving/` |
-| **Producto** | Dashboard HTML + SQL Agent (GPT-4o + DuckDB WASM) |
-| **Deploy** | Netlify — [dlogia.tech/logilake](https://dlogia.tech/logilake) |
+| **Procesamiento** | PySpark 3.5.0 + Delta Lake 3.1.0 |
+| **Ejecución local** | WSL2 Ubuntu + conda (Java 11) |
+| **Automatización** | `make run` — pipeline completo en un comando |
+| **Export** | pandas `to_csv()` → CSVs en `data/serving/` |
+| **Dashboard** | HTML + Chart.js 4.4.1 + D3 7.8.5 |
+| **SQL Agent** | GPT-4o (Netlify Function) + DuckDB WASM |
+| **Deploy** | Netlify — CI/CD automático en cada push |
+| **Streaming (opcional)** | Apache Kafka + Spark Structured Streaming |
 
 ---
 
@@ -75,19 +74,28 @@ Olist CSVs (data/raw/)
 
 **[Brazilian E-commerce by Olist](https://www.kaggle.com/datasets/olistbr/brazilian-ecommerce)** — Kaggle
 
-| Archivo | Descripcion | Registros |
+| Tabla Bronze | Descripción | Filas |
 |---|---|---|
-| olist_orders_dataset.csv | Pedidos principales | ~100k |
-| olist_order_items_dataset.csv | Items por pedido | ~113k |
-| olist_order_payments_dataset.csv | Pagos | ~104k |
-| olist_order_reviews_dataset.csv | Reviews de clientes | ~100k |
-| olist_products_dataset.csv | Catalogo de productos | ~33k |
-| olist_sellers_dataset.csv | Vendedores | ~3k |
-| product_category_name_translation.csv | Traduccion categorias | 71 |
+| orders | Pedidos principales | 99,441 |
+| order_items | Items por pedido | 112,650 |
+| order_payments | Pagos | 103,886 |
+| order_reviews | Reviews de clientes | 99,224 |
+| customers | Clientes | 99,441 |
+| sellers | Vendedores | 3,095 |
+| products | Catálogo de productos | 32,951 |
+| geolocation | Coordenadas por CEP | 1,000,163 |
+| category_translation | Traducción categorías | 71 |
 
 ---
 
-## Setup Local
+## Setup Local (WSL2)
+
+### Requisitos
+
+- Windows 10/11 con WSL2 + Ubuntu
+- conda en WSL (`/home/<user>/miniconda3/`)
+- Java 11 en WSL (`apt install openjdk-11-jdk`)
+- `make` en Windows (Git Bash lo incluye)
 
 ### 1. Clonar e instalar dependencias
 
@@ -96,9 +104,6 @@ git clone https://github.com/Juancanchala/logilake.git
 cd logilake
 pip install -r requirements.txt
 ```
-
-> **Windows**: requiere Java 11 o 17 instalado y `JAVA_HOME` configurado.
-> Descargar desde [adoptium.net](https://adoptium.net).
 
 ### 2. Descargar dataset Olist
 
@@ -109,53 +114,73 @@ kaggle datasets download -d olistbr/brazilian-ecommerce
 unzip brazilian-ecommerce.zip -d data/raw/
 ```
 
-### 3. Levantar Kafka en Docker (opcional)
+### 3. Correr el pipeline completo
+
+```bash
+make run
+```
+
+Esto ejecuta en orden:
+
+```
+Bronze  → Silver  → Gold  → Serving  → sync dashboard/data/
+```
+
+Al terminar, abre `dashboard/index.html` en el browser — los datos están actualizados.
+
+### Comandos disponibles
+
+```bash
+make run      # Pipeline completo (recomendado)
+make bronze   # Solo ingesta Bronze
+make silver   # Solo transformación Silver
+make gold     # Solo KPIs Gold
+make serving  # Solo export CSV + sync dashboard
+make sync     # Solo copia CSVs a dashboard/data sin correr el pipeline
+```
+
+### Kafka (opcional)
+
+Kafka simula el escenario real de streaming de eventos desde un OMS.
 
 ```bash
 cd kafka
 docker-compose up -d
 bash topic_config.sh create
-# Verificar en Kafka UI: http://localhost:8080
-cd ..
+python olist_producer.py
 ```
 
-> Si no tienes Docker, el notebook Bronze incluye modo batch directo desde CSV.
-
-### 4. Ejecutar notebooks en orden
-
-```bash
-jupyter notebook
-```
-
-```
-01_bronze_ingest.ipynb    -> data/bronze/   (Delta Lake)
-02_silver_transform.ipynb -> data/silver/   (Delta Lake)
-03_gold_kpis.ipynb        -> data/gold/     (Delta Lake)
-04_export_serving.ipynb   -> data/serving/  (CSVs)
-```
-
-### 5. Copiar CSVs al dashboard y desplegar
-
-```bash
-cp data/serving/*.csv dashboard/data/
-# Despliegue automatico via Netlify en cada push a main
-```
+> El pipeline batch (`make run`) no requiere Kafka. Es un modo alternativo
+> para demostrar integración con Spark Structured Streaming.
 
 ---
 
-## KPIs
+## KPIs producidos
 
-| KPI | Descripcion | Tabla |
+| KPI | Descripción | Tabla Serving |
 |---|---|---|
-| **OTIF Rate** | % ordenes entregadas a tiempo y completas | kpi_global |
-| **Avg Delivery Days** | Dias promedio de entrega real | kpi_monthly |
-| **Delivery Delay** | Retraso promedio vs estimado | kpi_monthly |
-| **Cancellation Rate** | % ordenes canceladas | kpi_monthly |
+| **OTIF Rate** | % órdenes entregadas a tiempo y completas | kpi_global |
 | **Total Revenue** | Revenue total en BRL | kpi_global |
-| **Avg Order Value** | Ticket promedio | kpi_global |
-| **Avg Review Score** | NPS proxy (1-5 estrellas) | kpi_global |
-| **Revenue por Categoria** | Top categorias por revenue | kpi_category |
+| **Avg Review Score** | NPS proxy (1–5 estrellas) | kpi_global, kpi_nps |
+| **Avg Delivery Days** | Días promedio de entrega real | kpi_monthly |
+| **Revenue por Categoría** | Top 10 categorías por revenue | kpi_category |
 | **OTIF por Estado** | Performance de entrega por estado BR | kpi_seller_state |
+| **Cancellation Rate** | % órdenes canceladas por mes | kpi_monthly |
+
+---
+
+## Contrato de Datos (Serving)
+
+Las capas Bronze → Silver → Gold pueden cambiar internamente. Lo que no cambia
+es el schema de los 5 CSVs en `serving/` — ese es el contrato con el BI layer.
+
+| Archivo | Filas | Descripción |
+|---|---|---|
+| `kpi_global.csv` | 1 | Totales globales del dataset |
+| `kpi_monthly.csv` | 24 | KPIs agregados por mes |
+| `kpi_nps.csv` | 5 | Distribución de ratings (1–5★) |
+| `kpi_category.csv` | 44 | KPIs por categoría de producto |
+| `kpi_seller_state.csv` | 22 | KPIs por estado de Brasil |
 
 ---
 
@@ -163,61 +188,45 @@ cp data/serving/*.csv dashboard/data/
 
 ```
 logilake/
-|-- kafka/
-|   |-- docker-compose.yml       # Kafka + Zookeeper + Kafka UI
-|   |-- olist_producer.py        # Producer CSV -> Kafka
-|   +-- topic_config.sh          # Gestion del topic
-|-- notebooks/
-|   |-- bronze/01_bronze_ingest.ipynb
-|   |-- silver/02_silver_transform.ipynb
-|   |-- gold/03_gold_kpis.ipynb
-|   +-- serving/04_export_serving.ipynb
-|-- utils/
-|   |-- schemas.py               # Schemas PySpark por capa
-|   +-- delta_helpers.py         # Helpers de Delta Lake
-|-- dashboard/
-|   |-- index.html               # Dashboard principal
-|   |-- js/
-|   |   |-- charts.js            # Visualizaciones KPIs
-|   |   +-- agent.js             # SQL Agent (GPT-4o + DuckDB WASM)
-|   +-- data/                    # CSVs Gold (copiados desde data/serving/)
-|-- data/
-|   |-- raw/                     # CSVs Olist (gitignored)
-|   |-- bronze/                  # Delta Lake Bronze (gitignored)
-|   |-- silver/                  # Delta Lake Silver (gitignored)
-|   |-- gold/                    # Delta Lake Gold (gitignored)
-|   +-- serving/                 # CSVs exportados (gitignored)
-|-- requirements.txt
-|-- .gitignore
-+-- README.md
+├── kafka/
+│   ├── docker-compose.yml        # Kafka + Zookeeper + Kafka UI
+│   ├── olist_producer.py         # Producer CSV → Kafka (streaming demo)
+│   └── topic_config.sh           # Gestión del topic
+├── notebooks/
+│   ├── bronze/01_bronze_ingest.ipynb
+│   ├── silver/02_silver_transform.ipynb
+│   ├── gold/03_gold_kpis.ipynb
+│   └── serving/04_export_serving.ipynb
+├── dashboard/
+│   ├── index.html                # Dashboard principal (responsive)
+│   ├── _redirects                # Netlify SPA routing
+│   ├── js/
+│   │   └── agent.js              # SQL Agent — DuckDB WASM + GPT-4o
+│   └── data/                     # CSVs Serving (sincronizados por el pipeline)
+├── netlify/
+│   └── functions/
+│       └── ask.js                # Proxy GPT-4o — protege la API key
+├── scripts/
+│   └── run_pipeline.sh           # Script maestro WSL — ejecuta los 4 notebooks
+├── utils/
+│   ├── schemas.py                # Schemas PySpark por capa
+│   └── delta_helpers.py          # Helpers Delta Lake
+├── data/
+│   ├── raw/                      # CSVs Olist originales (gitignored)
+│   ├── bronze/                   # Delta Lake Bronze (gitignored)
+│   ├── silver/                   # Delta Lake Silver (gitignored)
+│   ├── gold/                     # Delta Lake Gold (gitignored)
+│   └── serving/                  # CSVs exportados (gitignored)
+├── Makefile                      # make run / make bronze / etc.
+├── netlify.toml                  # Config deploy — publish = dashboard/
+├── requirements.txt
+└── .gitignore
 ```
-
----
-
-## Notas de Arquitectura
-
-### SparkSession local con Delta Lake
-
-Cada notebook configura su propia `SparkSession` usando `configure_spark_with_delta_pip`
-de `delta-spark`, que descarga automaticamente los JARs necesarios la primera vez.
-
-### SQL Agent con DuckDB WASM
-
-El dashboard incluye un agente conversacional que permite hacer preguntas en lenguaje
-natural sobre los datos. GPT-4o genera SQL, DuckDB WASM lo ejecuta en el navegador
-sobre los CSVs cargados, y el resultado se renderiza como tabla o grafico.
-
-### Por que Kafka si solo corre local
-
-Kafka simula el escenario real de streaming de eventos de un OMS en tiempo real.
-El producer Python reemplaza la fuente real y demuestra la integracion completa
-Bronze <- Spark Structured Streaming <- Kafka. El notebook Bronze incluye
-**modo batch** como alternativa cuando Kafka no esta disponible.
 
 ---
 
 ## Autor
 
-**Juan Camilo** — Data & AI Engineer
+**Juan Camilo Canchala** — Data & AI Engineer
 **D'LOGIA** | [dlogia.tech](https://dlogia.tech) | [github.com/Juancanchala](https://github.com/Juancanchala)
-Medellin, Colombia
+Medellín, Colombia
