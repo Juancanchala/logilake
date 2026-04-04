@@ -1,0 +1,2 @@
+total_orders,total_delivered,total_canceled,otif_rate_pct,avg_delivery_days_actual,avg_delivery_days_estimated,avg_delay_days,total_revenue_brl,avg_order_value_brl,avg_review_score,avg_freight_ratio_pct,gold_computed_at
+99441,96478,625,93.23,12.5,24.4,-11.9,16008872.12,160.99,4.09,30.8,2026-04-04 02:20:31.365233

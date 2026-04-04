@@ -1,1 +1,425 @@
-<!-- LogiLake Dashboard — se construye en Sesión 2 -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LogiLake — Olist Analytics</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:system-ui,sans-serif;background:#f4f3f1}
+    .dash{background:#f4f3f1;min-height:100vh;padding:24px}
+    .header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+    .logo{font-size:18px;font-weight:600;color:#1a1a18;letter-spacing:-0.3px}
+    .logo span{color:#3b6d11;font-weight:400}
+    .header-meta{font-size:12px;color:#888780}
+    .filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:20px;background:#fff;border-radius:10px;padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,0.07)}
+    .filter-label{font-size:11px;color:#888780;letter-spacing:1px;text-transform:uppercase;white-space:nowrap}
+    .filter-btn{font-size:12px;color:#5f5e5a;background:#f4f3f1;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;transition:all 0.15s}
+    .filter-btn.active{background:#1a1a18;color:#fff}
+    .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:16px}
+    .kpi-card{background:#fff;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(0,0,0,0.07)}
+    .kpi-label{font-size:11px;color:#888780;letter-spacing:0.5px;margin-bottom:8px}
+    .kpi-value{font-size:28px;font-weight:600;color:#1a1a18;line-height:1;letter-spacing:-0.5px}
+    .kpi-value.green{color:#3b6d11}
+    .kpi-value.amber{color:#854f0b}
+    .kpi-sub{font-size:11px;color:#b4b2a9;margin-top:5px}
+    .row{display:grid;gap:12px;margin-bottom:12px}
+    .row-2{grid-template-columns:1.5fr 1fr}
+    .panel{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,0.07)}
+    .panel-title{font-size:11px;color:#888780;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:14px}
+    .chart-wrap{position:relative;width:100%}
+    #map-svg{width:100%;height:auto}
+    .legend{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:11px;color:#888780}
+    .leg-bar{display:flex;gap:2px}
+    .leg-seg{width:28px;height:8px;border-radius:2px}
+    select{font-size:11px;color:#5f5e5a;background:#f4f3f1;border:none;border-radius:6px;padding:4px 8px;cursor:pointer;outline:none;margin-left:auto}
+    .loading{display:flex;align-items:center;justify-content:center;height:100vh;font-size:14px;color:#888780}
+  </style>
+</head>
+<body>
+
+<div id="loading" class="loading">Cargando datos...</div>
+
+<div class="dash" id="app" style="display:none">
+  <div class="header">
+    <div class="logo">Logi<span>Lake</span></div>
+    <div class="header-meta">Olist E-Commerce · Brasil 2016–2018 · <span id="meta-orders">–</span> órdenes</div>
+  </div>
+
+  <div class="filter-bar">
+    <span class="filter-label">Período</span>
+    <button class="filter-btn active" onclick="setYear('all',this)">Todo</button>
+    <button class="filter-btn" onclick="setYear('2016',this)">2016</button>
+    <button class="filter-btn" onclick="setYear('2017',this)">2017</button>
+    <button class="filter-btn" onclick="setYear('2018',this)">2018</button>
+    <select id="catFilter" onchange="setCat(this.value)">
+      <option value="all">Todas las categorías</option>
+    </select>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-label">Total órdenes</div>
+      <div class="kpi-value" id="k-orders">–</div>
+      <div class="kpi-sub" id="k-orders-sub">registros procesados</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">OTIF rate</div>
+      <div class="kpi-value green" id="k-otif">–</div>
+      <div class="kpi-sub">entregadas a tiempo</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Revenue total</div>
+      <div class="kpi-value" id="k-rev">–</div>
+      <div class="kpi-sub">valor transaccional</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Review score</div>
+      <div class="kpi-value green" id="k-nps">–</div>
+      <div class="kpi-sub">promedio / 5.0</div>
+    </div>
+  </div>
+
+  <div class="row row-2">
+    <div class="panel">
+      <div class="panel-title">Órdenes mensuales</div>
+      <div class="chart-wrap" style="height:200px"><canvas id="monthlyChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Review score</div>
+      <div class="chart-wrap" style="height:160px"><canvas id="npsChart"></canvas></div>
+      <div id="nps-legend" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;font-size:11px;color:#888780"></div>
+    </div>
+  </div>
+
+  <div class="row row-2">
+    <div class="panel">
+      <div class="panel-title">Revenue por categoría · top 10</div>
+      <div class="chart-wrap" style="height:300px"><canvas id="catChart"></canvas></div>
+    </div>
+    <div class="panel">
+      <div style="display:flex;align-items:center;margin-bottom:14px">
+        <span class="panel-title" style="margin-bottom:0">Métricas por estado · Brasil</span>
+        <select id="mapMetric" onchange="updateMap()" style="margin-left:auto">
+          <option value="otif">OTIF rate %</option>
+          <option value="delivery">Avg delivery días</option>
+          <option value="score">Review score</option>
+        </select>
+      </div>
+      <svg id="map-svg" viewBox="0 0 400 420"></svg>
+      <div class="legend">
+        <span style="font-size:10px">Bajo</span>
+        <div class="leg-bar" id="legendBar"></div>
+        <span style="font-size:10px">Alto</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script>
+// ─── Constants ────────────────────────────────────────────────────────────────
+const MONTH_ES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const GC = '#e8e6e3';
+
+const CAT_LABELS = {
+  health_beauty:'Health & Beauty', watches_gifts:'Watches & Gifts',
+  bed_bath_table:'Bed Bath Table', sports_leisure:'Sports & Leisure',
+  computers_accessories:'Computers & Acc', furniture_decor:'Furniture & Decor',
+  housewares:'Housewares', cool_stuff:'Cool Stuff', auto:'Auto',
+  garden_tools:'Garden Tools', toys:'Toys', telephony:'Telephony',
+  perfumery:'Perfumery', baby:'Baby', electronics:'Electronics',
+};
+
+const STATE_POS = {
+  AM:{x:105,y:105,w:90,h:70}, PA:{x:195,y:80,w:80,h:80}, AP:{x:230,y:45,w:35,h:35},
+  RR:{x:130,y:45,w:40,h:40}, AC:{x:60,y:155,w:50,h:30}, RO:{x:115,y:165,w:50,h:35},
+  MT:{x:175,y:165,w:70,h:60}, TO:{x:245,y:145,w:45,h:60}, MA:{x:270,y:100,w:50,h:50},
+  PI:{x:295,y:140,w:40,h:45}, CE:{x:315,y:115,w:45,h:35}, RN:{x:345,y:128,w:30,h:25},
+  PB:{x:335,y:148,w:35,h:20}, PE:{x:310,y:163,w:55,h:25}, AL:{x:340,y:183,w:25,h:20},
+  SE:{x:330,y:200,w:25,h:20}, BA:{x:265,y:185,w:80,h:75}, GO:{x:200,y:220,w:55,h:55},
+  DF:{x:230,y:238,w:18,h:14}, MG:{x:250,y:255,w:80,h:65}, ES:{x:315,y:265,w:25,h:35},
+  SP:{x:215,y:305,w:70,h:50}, RJ:{x:285,y:295,w:45,h:35}, PR:{x:200,y:340,w:65,h:35},
+  SC:{x:210,y:365,w:55,h:25}, RS:{x:185,y:378,w:65,h:38},
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let gMonthly, gCategories, gStates, gGlobal, gNPS;
+let activeYear = 'all', activeCat = 'all';
+let chartMonthly, chartNPS, chartCat;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function fmtMonth(s) {
+  const [y, m] = s.split('-');
+  return MONTH_ES[+m - 1] + '-' + y.slice(2);
+}
+function fmtRev(n) {
+  n = +n;
+  if (n >= 1e6) return 'R$' + (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return 'R$' + (n / 1e3).toFixed(0) + 'K';
+  return 'R$' + n.toFixed(0);
+}
+function wAvg(rows, val, wt) {
+  const total = d3.sum(rows, d => +d[wt]);
+  return total ? d3.sum(rows, d => +d[val] * +d[wt]) / total : 0;
+}
+
+// ─── Data access ──────────────────────────────────────────────────────────────
+function filteredMonthly() {
+  const rows = activeYear === 'all' ? gMonthly : gMonthly.filter(d => d.order_month.startsWith(activeYear));
+  return rows.filter(d => +d.orders > 10); // drop incomplete months (4, 16 orders)
+}
+
+function yearKPIs() {
+  const rows = filteredMonthly();
+  return {
+    orders:  d3.sum(rows, d => +d.orders),
+    revenue: d3.sum(rows, d => +d.revenue_brl),
+    otif:    wAvg(rows, 'otif_rate_pct', 'orders'),
+    score:   wAvg(rows, 'avg_review_score', 'orders'),
+  };
+}
+
+// ─── KPI cards ────────────────────────────────────────────────────────────────
+function updateKPICards() {
+  let kpi, sub = 'registros procesados';
+
+  if (activeCat !== 'all') {
+    const cat = gCategories.find(d => d.category === activeCat);
+    if (cat) {
+      kpi = { orders: cat.orders, revenue: cat.revenue_brl, otif: cat.otif_rate_pct, score: cat.avg_review_score };
+      sub = CAT_LABELS[activeCat] || activeCat;
+    }
+  }
+
+  if (!kpi) {
+    if (activeYear === 'all') {
+      kpi = { orders: gGlobal.total_orders, revenue: gGlobal.total_revenue_brl, otif: gGlobal.otif_rate_pct, score: gGlobal.avg_review_score };
+    } else {
+      const agg = yearKPIs();
+      kpi = { orders: agg.orders, revenue: agg.revenue, otif: agg.otif, score: agg.score };
+      sub = `órdenes en ${activeYear}`;
+    }
+  }
+
+  document.getElementById('k-orders').textContent = (+kpi.orders).toLocaleString('es-CO');
+  document.getElementById('k-orders-sub').textContent = sub;
+  document.getElementById('k-otif').textContent   = (+kpi.otif).toFixed(1) + '%';
+  document.getElementById('k-rev').textContent    = fmtRev(+kpi.revenue);
+  document.getElementById('k-nps').textContent    = (+kpi.score).toFixed(2);
+}
+
+// ─── Monthly chart ────────────────────────────────────────────────────────────
+function updateMonthlyChart() {
+  const rows = filteredMonthly();
+  chartMonthly.data.labels = rows.map(d => fmtMonth(d.order_month));
+  chartMonthly.data.datasets[0].data = rows.map(d => +d.orders);
+  chartMonthly.update();
+}
+
+// ─── Category chart ───────────────────────────────────────────────────────────
+function updateCatChart() {
+  const top10 = gCategories.slice(0, 10);
+  chartCat.data.datasets[0].backgroundColor = top10.map(d =>
+    activeCat === 'all' || d.category === activeCat ? '#1a1a18' : '#d3d1c7'
+  );
+  chartCat.update();
+}
+
+// ─── Filter handlers ──────────────────────────────────────────────────────────
+function setYear(year, btn) {
+  activeYear = year;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  updateKPICards();
+  updateMonthlyChart();
+}
+
+function setCat(val) {
+  activeCat = val;
+  updateCatChart();
+  updateKPICards();
+}
+
+// ─── State map ────────────────────────────────────────────────────────────────
+function updateMap() {
+  const metric = document.getElementById('mapMetric').value;
+  const stateMap = {};
+  gStates.forEach(d => {
+    stateMap[d.seller_state] = {
+      otif:     +d.otif_rate_pct,
+      delivery: +d.avg_delivery_days,
+      score:    +d.avg_review_score,
+    };
+  });
+
+  const allVals = Object.values(stateMap).map(d => d[metric]).filter(v => !isNaN(v));
+  const minV = Math.min(...allVals), maxV = Math.max(...allVals);
+  const isGoodHigh = metric !== 'delivery';
+  const palette = isGoodHigh
+    ? ['#eaf3de','#c0dd97','#97c459','#639922','#3b6d11']
+    : ['#3b6d11','#639922','#ef9f27','#e24b4a','#b91c1c'];
+
+  function getColor(v) {
+    if (isNaN(v)) return '#e5e3df'; // no data
+    const t = (v - minV) / (maxV - minV || 1);
+    return palette[Math.min(4, Math.floor(t * 5))];
+  }
+
+  const svg = document.getElementById('map-svg');
+  svg.innerHTML = '';
+
+  Object.entries(STATE_POS).forEach(([code, pos]) => {
+    const entry = stateMap[code];
+    const v = entry ? entry[metric] : NaN;
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', pos.x); rect.setAttribute('y', pos.y);
+    rect.setAttribute('width', pos.w); rect.setAttribute('height', pos.h);
+    rect.setAttribute('rx', '4');
+    rect.setAttribute('fill', getColor(v));
+    rect.setAttribute('stroke', '#f4f3f1'); rect.setAttribute('stroke-width', '1.5');
+
+    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    label.setAttribute('x', pos.x + pos.w / 2); label.setAttribute('y', pos.y + pos.h / 2 - 4);
+    label.setAttribute('text-anchor', 'middle'); label.setAttribute('font-size', '8');
+    label.setAttribute('font-weight', '600'); label.setAttribute('fill', '#2c2c2a');
+    label.textContent = code;
+
+    const valText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    valText.setAttribute('x', pos.x + pos.w / 2); valText.setAttribute('y', pos.y + pos.h / 2 + 8);
+    valText.setAttribute('text-anchor', 'middle'); valText.setAttribute('font-size', '7');
+    valText.setAttribute('fill', '#5f5e5a');
+    valText.textContent = isNaN(v) ? '–' :
+      metric === 'otif'     ? v.toFixed(1) + '%' :
+      metric === 'delivery' ? v.toFixed(1) + 'd' :
+                              v.toFixed(2);
+
+    g.appendChild(rect); g.appendChild(label); g.appendChild(valText);
+    svg.appendChild(g);
+  });
+
+  const bar = document.getElementById('legendBar');
+  bar.innerHTML = palette.map(c => `<div class="leg-seg" style="background:${c}"></div>`).join('');
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  try {
+    const [globalRows, monthly, nps, categories, states] = await Promise.all([
+      d3.csv('data/kpi_global.csv'),
+      d3.csv('data/kpi_monthly.csv'),
+      d3.csv('data/kpi_nps.csv'),
+      d3.csv('data/kpi_category.csv'),
+      d3.csv('data/kpi_seller_state.csv'),
+    ]);
+
+    gGlobal     = globalRows[0];
+    gMonthly    = monthly;
+    gNPS        = nps;
+    gCategories = categories;
+    gStates     = states;
+
+    // Header meta
+    document.getElementById('meta-orders').textContent =
+      (+gGlobal.total_orders).toLocaleString('es-CO');
+
+    // Category dropdown
+    const sel = document.getElementById('catFilter');
+    categories.forEach(d => {
+      const opt = document.createElement('option');
+      opt.value = d.category;
+      opt.textContent = CAT_LABELS[d.category] || d.category;
+      sel.appendChild(opt);
+    });
+
+    // NPS legend
+    const npsColors = ['#3b6d11','#97c459','#d3d1c7','#ef9f27','#e24b4a'];
+    document.getElementById('nps-legend').innerHTML = nps.map((d, i) =>
+      `<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${npsColors[i]};margin-right:5px"></span>
+       ${d.review_score_int}★ ${(+d.pct_of_total).toFixed(1)}%</span>`
+    ).join('');
+
+    // ── Monthly chart ──
+    const mRows = gMonthly.filter(d => +d.orders > 10);
+    chartMonthly = new Chart(document.getElementById('monthlyChart'), {
+      type: 'line',
+      data: {
+        labels: mRows.map(d => fmtMonth(d.order_month)),
+        datasets: [{
+          data: mRows.map(d => +d.orders),
+          borderColor: '#1a1a18', backgroundColor: 'rgba(26,26,24,0.05)',
+          borderWidth: 1.5, pointRadius: 2.5, pointBackgroundColor: '#1a1a18',
+          fill: true, tension: 0.35, spanGaps: true,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { font:{size:9}, color:'#888780', maxRotation:45, maxTicksLimit:10 }, grid: { color:GC, lineWidth:0.5 } },
+          y: { ticks: { font:{size:9}, color:'#888780' }, grid: { color:GC, lineWidth:0.5 } }
+        }
+      }
+    });
+
+    // ── NPS doughnut ──
+    chartNPS = new Chart(document.getElementById('npsChart'), {
+      type: 'doughnut',
+      data: {
+        labels: nps.map(d => d.review_score_int + '★'),
+        datasets: [{
+          data: nps.map(d => +d.pct_of_total),
+          backgroundColor: npsColors,
+          borderWidth: 0, hoverOffset: 4,
+        }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // ── Category bar chart ──
+    const top10 = categories.slice(0, 10);
+    chartCat = new Chart(document.getElementById('catChart'), {
+      type: 'bar',
+      data: {
+        labels: top10.map(d => CAT_LABELS[d.category] || d.category),
+        datasets: [{
+          data: top10.map(d => +(+d.revenue_brl / 1e6).toFixed(3)),
+          backgroundColor: '#1a1a18',
+          borderWidth: 0, barThickness: 14,
+        }]
+      },
+      options: {
+        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { font:{size:9}, color:'#888780', callback: v => 'R$' + v + 'M' }, grid: { color:GC, lineWidth:0.5 } },
+          y: { ticks: { font:{size:9}, color:'#888780' }, grid: { display:false } }
+        }
+      }
+    });
+
+    // ── Initial KPIs & map ──
+    updateKPICards();
+    updateMap();
+
+    // Show dashboard
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+
+  } catch (err) {
+    document.getElementById('loading').textContent = 'Error cargando datos: ' + err.message;
+    console.error(err);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
