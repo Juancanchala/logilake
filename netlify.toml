@@ -1,0 +1,18 @@
+[build]
+  publish = "dashboard"
+  functions = "netlify/functions"
+
+# Headers para los CSVs — necesario para DuckDB WASM
+[[headers]]
+  for = "/data/*.csv"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Cache-Control = "public, max-age=3600"
+
+# Headers para las Netlify Functions (SQL Agent)
+[[headers]]
+  for = "/.netlify/functions/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    Access-Control-Allow-Methods = "POST, OPTIONS"
+    Access-Control-Allow-Headers = "Content-Type"
