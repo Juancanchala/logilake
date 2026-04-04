@@ -114,6 +114,37 @@
       </div>
     </div>
   </div>
+
+  <!-- ── SQL Agent ─────────────────────────────────────────────────────────── -->
+  <div class="panel" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <span class="panel-title" style="margin-bottom:0">SQL Agent · pregunta en lenguaje natural</span>
+      <span id="agent-status" style="font-size:11px;color:#b4b2a9">Cargando motor SQL...</span>
+    </div>
+
+    <div id="agent-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
+
+    <div style="display:flex;gap:8px">
+      <input id="agent-input" type="text" disabled
+        placeholder="Ej: ¿Qué estado tiene mejor OTIF rate?"
+        style="flex:1;padding:8px 12px;border:1px solid #e8e6e3;border-radius:8px;font-size:13px;outline:none;background:#f4f3f1;color:#1a1a18">
+      <button id="agent-btn" disabled
+        style="padding:8px 18px;background:#1a1a18;color:#fff;border:none;border-radius:8px;font-size:13px;cursor:pointer;white-space:nowrap;opacity:0.4">
+        Preguntar
+      </button>
+    </div>
+
+    <div id="agent-error"
+      style="display:none;margin-top:12px;padding:10px 14px;background:#fff0f0;border-radius:8px;font-size:12px;color:#e24b4a"></div>
+
+    <div id="agent-result" style="display:none;margin-top:16px">
+      <div style="font-size:10px;color:#888780;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:6px">SQL generado</div>
+      <pre id="agent-sql"
+        style="background:#1a1a18;color:#97c459;padding:12px 16px;border-radius:8px;font-size:12px;overflow-x:auto;margin-bottom:12px;white-space:pre-wrap;word-break:break-word"></pre>
+      <div id="agent-table-wrap" style="overflow-x:auto"></div>
+    </div>
+  </div>
+
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -421,5 +452,6 @@ async function init() {
 
 init();
 </script>
+<script type="module" src="js/agent.js"></script>
 </body>
 </html>
