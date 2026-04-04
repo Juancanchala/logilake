@@ -168,7 +168,7 @@ function wAvg(rows, val, wt) {
 // ─── Data access ──────────────────────────────────────────────────────────────
 function filteredMonthly() {
   const rows = activeYear === 'all' ? gMonthly : gMonthly.filter(d => d.order_month.startsWith(activeYear));
-  return rows.filter(d => +d.orders > 10); // drop incomplete months (4, 16 orders)
+  return rows.filter(d => +d.orders > 100); // drop incomplete months at dataset edges
 }
 
 function yearKPIs() {
@@ -336,14 +336,14 @@ async function init() {
     });
 
     // NPS legend
-    const npsColors = ['#3b6d11','#97c459','#d3d1c7','#ef9f27','#e24b4a'];
+    const npsColors = ['#e24b4a','#ef9f27','#d3d1c7','#97c459','#3b6d11']; // 1★=rojo → 5★=verde
     document.getElementById('nps-legend').innerHTML = nps.map((d, i) =>
       `<span><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${npsColors[i]};margin-right:5px"></span>
        ${d.review_score_int}★ ${(+d.pct_of_total).toFixed(1)}%</span>`
     ).join('');
 
     // ── Monthly chart ──
-    const mRows = gMonthly.filter(d => +d.orders > 10);
+    const mRows = gMonthly.filter(d => +d.orders > 100);
     chartMonthly = new Chart(document.getElementById('monthlyChart'), {
       type: 'line',
       data: {
